@@ -4,12 +4,16 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-import seaborn as sns
+import warnings
+warnings.filterwarnings('ignore')
+
+# Configuracion de pagina - DEBE IR PRIMERO
+st.set_page_config(page_title="Control Maestro v9.0", layout="wide", page_icon="🔥")
 
 # --- 1. SEGURIDAD ---
 def check_password():
     if "password_correct" not in st.session_state:
-        st.text_input("TRIPLE RADAR v8.1 - Acceso Restringido", type="password", on_change=password_entered, key="password")
+        st.text_input("Control Maestro v9.0 - Acceso Restringido", type="password", on_change=password_entered, key="password")
         return False
     return st.session_state["password_correct"]
 
@@ -17,200 +21,412 @@ def password_entered():
     if st.session_state["password"] == "TU_CLAVE":
         st.session_state["password_correct"] = True
         del st.session_state["password"]
-    else: st.session_state["password_correct"] = False
+    else: 
+        st.session_state["password_correct"] = False
 
-if not check_password(): st.stop()
+if not check_password(): 
+    st.stop()
 
-st.set_page_config(page_title="TRIPLE RADAR v8.1", layout="wide", page_icon="🔥")
-st.title("🎛️ TRIPLE RADAR v8.1: Fuego Maestro + BTC")
+st.title("🎛️ Control Maestro v9.0: ARIMA + GARCH + Analisis Tecnico")
 
-# --- 2. CALCULADORA DE POSICIÓN (Sidebar) ---
-st.sidebar.header("🛡️ GESTIÓN DE RIESGO")
-balance = st.sidebar.number_input("Capital Cuenta (USD)", value=1000.0, min_value=0.0, help="Tu capital total disponible en la cuenta de trading.")
-riesgo_usd = st.sidebar.number_input("Riesgo por Trade (USD)", value=10.0, min_value=0.0, help="Cantidad máxima que estás dispuesto a perder en este trade.")
-pips_sl = st.sidebar.number_input("Pips de Stop Loss (SL)", min_value=1.0, value=20.0, step=1.0, help="Distancia en pips (o puntos para BTC) desde el entry hasta el stop loss.")
-
-def calcular_lotes_final(riesgo, pips, activo):
-    if pips == 0: return 0
-    if "JPY" in activo:
-        return riesgo / (pips * 7.5)  # Ajuste para pares con JPY (aprox. valor pip)
-    elif "BTC" in activo:
-        return riesgo / (pips * 100)  # Ajuste aproximado para BTC (asumiendo 1 lote = 1 BTC, pip ~ $100 dependiendo del broker)
-    else:
-        return riesgo / (pips * 10)  # Genérico para otros pares como Oro
-
-# --- 3. LEYENDAS Y GUÍAS MEJORADAS ---
-# Guía para principiantes (Dummies)
-with st.expander("📖 Guía para Principiantes (Estilo 'For Dummies')", expanded=True):
+# --- 2. LEYENDA UNICA EXPLICATIVA (PARA DUMMIES) ---
+with st.expander("📖 GUIA RAPIDA: Que significa todo esto? (Lee esto primero)", expanded=True):
     st.markdown("""
-    **¡Hola Trader Novato! Bienvenido a TRIPLE RADAR v8.1 – Tu Amigo en el Trading.**
-    
-    - **¿Qué es esto?** Una app super simple que analiza Oro, USD/JPY y Bitcoin. Te muestra gráficos con señales fáciles de entender para decidir si comprar o vender.
-    - **¿Para qué sirve?** Para no perder dinero tontamente. Calcula cuánto arriesgar, detecta momentos "calientes" (como el Fuego Maestro) y te da alertas visuales.
-    - **Cómo usarla (paso a paso):**
-      1. **Sidebar (izquierda):** Pon tu capital, riesgo y pips de SL. Te dice el tamaño de lote ideal para no quebrar.
-      2. **Gráficos:** Para cada activo (Oro, Yen, BTC), ves 3 gráficos (5m, 15m, 1h). 
-         - **Línea Blanca:** Precio actual.
-         - **Línea Cian (VWAP):** Precio promedio ponderado por volumen – si el precio está arriba, es alcista; abajo, bajista.
-         - **Línea Roja (POC):** El precio con más volumen histórico – actúa como soporte/resistencia.
-         - **Cuadro Verde/Rojo:** Dice "COMPRA" o "VENTA" basado en si el precio > VWAP.
-         - **Diamante Azul 💠:** Aparece cuando hay baja volatilidad pero alto volumen – señal de posible explosión de precio.
-      3. **Fuego Maestro 🔥:** Si los 3 gráficos dicen lo mismo (todos COMPRA o VENTA), ¡es una señal fuerte! Entra en esa dirección.
-    - **Consejos Dummies:** No trades sin SL. Usa lotes pequeños al inicio. Si ves Fuego Maestro, ¡es como una luz verde para actuar!
-    - **Escenarios Fáciles:** 
-      - Rebote en POC con Diamante: Compra/Vende en el rebote.
-      - Cruce de VWAP: Si cruza arriba, compra; abajo, vende.
-    
-    ¡Prueba con demo primero y diviértete trading!
-    """)
+### 🎯 Este sistema te ayuda a decidir si COMPRAR, VENDER o ESPERAR
 
-# Guía profesional
-with st.expander("🧠 Guía Profesional (Detalles Técnicos)"):
-    st.markdown("""
-    **Descripción Avanzada para Traders Experimentados:**
-    
-    - **Objetivo:** Plataforma de análisis multi-activo (Commodities, FX, Crypto) con enfoque en alineación multi-timeframe para señales de alta probabilidad.
-    - **Activos Analizados:** Oro (GC=F), USD/JPY (USDJPY=X), Bitcoin (BTC-USD) vía yfinance API.
-    - **Timeframes:** 5m (2d), 15m (5d), 1h (30d) para capturar momentum corto-medio plazo.
-    - **Indicadores Clave:**
-      - **POC (Point of Control):** Calculado vía binning de precios (20 bins) y suma de volumen por bin. Representa el nivel de mayor volumen negociado – fuerte magnetismo.
-      - **VWAP (Volume Weighted Average Price):** Cumsum(Close * Volume) / Cumsum(Volume). Umbral dinámico para bias alcista/bajista.
-      - **Diamante (Señal de Compresión):** RVOL > 2.0 (volumen relativo > 200% media 20 períodos) Y Range actual < media Range (20 períodos). Indica acumulación/distribución inminente.
-      - **Tendencia Local:** Basada en Close > VWAP (Alcista) o < VWAP (Bajista).
-    - **Fuego Maestro:** Consenso unánime en los 3 TFs (todos COMPRA o VENTA). Alta probabilidad de continuación de tendencia.
-    - **Gestión de Riesgo:** Cálculo de lotes = Riesgo_USD / (Pips_SL * Valor_Pip). Ajustes por activo (JPY: ~7.5 USD/pip; BTC: ~100 USD/punto asumiendo estándar).
-    - **Visualización:** Gráficos con fondo oscuro para legibilidad. Etiquetas inline para POC. Cajas de tendencia con alpha para overlay no intrusivo.
-    - **Limitaciones:** Datos históricos de yfinance (posibles gaps). No incluye slippage/comisiones. POC aproximado (binning). Para producción, integra APIs reales de broker.
-    - **Mejoras Sugeridas:** Añadir alertas email/SMS, backtesting integrado, o ML para predicción de VWAP.
-    
-    Código optimizado para Streamlit: Caché implícito en descargas, manejo de errores robusto.
-    """)
+| Elemento | Que es | Como usarlo |
+|----------|--------|-------------|
+| **POC (Linea Roja)** | El precio donde hubo MAS compradores y vendedores. | Si el precio esta cerca, puede rebotar o romper con fuerza. |
+| **VWAP (Linea Cyan)** | Precio promedio ponderado por volumen del dia. | Precio ARRIBA = alcista. Precio ABAJO = bajista. |
+| **Diamante Azul** | Senal de posible reversion. Hay mucho volumen pero poca volatilidad. | El precio podria cambiar de direccion pronto. |
+| **Grafico ARIMA** | Linea de prediccion futura con bandas azul cielo (95% confianza). | Si la linea sube = tendencia alcista. Si baja = bajista. |
+| **Grafico GARCH** | Muestra la volatilidad esperada con bandas de incertidumbre. | Bandas anchas = mas riesgo. Bandas estrechas = menos riesgo. |
+| **FUEGO MAESTRO** | Senal cuando 5m, 15m y 1H coinciden en la misma direccion. | Esta es la senal mas fuerte! |
 
-# --- 4. ANÁLISIS DE MERCADO ---
+---
+
+### ⚡ REGLAS SIMPLES PARA OPERAR:
+
+1. **Si ves FUEGO MAESTRO** -> Considera entrar en esa direccion
+2. **Si ARIMA apunta ARRIBA + bandas estrechas** -> Buena oportunidad de COMPRA
+3. **Si ARIMA apunta ABAJO + bandas estrechas** -> Buena oportunidad de VENTA  
+4. **Si las bandas GARCH son MUY ANCHAS** -> CUIDADO! Reduce tu riesgo
+5. **Si los timeframes no coinciden** -> NO OPERES, espera alineacion
+
+*Recuerda: Ningun sistema es 100% efectivo. Siempre usa stop loss.*
+""")
+
+# --- 3. FUNCIONES DE ARIMA Y GARCH ---
+
+# Importar ARIMA y GARCH con manejo de errores
+try:
+    from statsmodels.tsa.arima.model import ARIMA
+    ARIMA_DISPONIBLE = True
+except ImportError:
+    ARIMA_DISPONIBLE = False
+    st.warning("statsmodels no instalado. ARIMA no disponible. Instala con: pip install statsmodels")
+
+try:
+    from arch import arch_model
+    GARCH_DISPONIBLE = True
+except ImportError:
+    GARCH_DISPONIBLE = False
+    st.warning("arch no instalado. GARCH no disponible. Instala con: pip install arch")
+
+
+def graficar_arima_forecast(precios, nombre_activo, periodos_prediccion=10):
+    """
+    ARIMA: Grafica prediccion de precios con bandas de confianza 95%
+    """
+    if not ARIMA_DISPONIBLE:
+        return None, None
+    
+    try:
+        precios_clean = precios.dropna().astype(float)
+        if len(precios_clean) < 50:
+            return None, None
+        
+        # Usar ultimos 200 datos para mejor rendimiento
+        precios_clean = precios_clean.tail(200)
+        
+        # Ajustar modelo ARIMA
+        model = ARIMA(precios_clean, order=(2, 1, 2))
+        model_fit = model.fit()
+        
+        # Forecast con intervalos de confianza
+        forecast_result = model_fit.get_forecast(steps=periodos_prediccion)
+        forecast_mean = forecast_result.predicted_mean
+        conf_int = forecast_result.conf_int(alpha=0.05)  # 95% confianza
+        
+        # Crear indice futuro
+        ultimo_indice = precios_clean.index[-1]
+        if isinstance(ultimo_indice, pd.Timestamp):
+            freq = pd.infer_freq(precios_clean.index[-20:])
+            if freq is None:
+                freq = 'H'  # Default a horas
+            indice_futuro = pd.date_range(start=ultimo_indice, periods=periodos_prediccion + 1, freq=freq)[1:]
+        else:
+            indice_futuro = range(len(precios_clean), len(precios_clean) + periodos_prediccion)
+        
+        # Crear grafico
+        fig, ax = plt.subplots(figsize=(8, 4))
+        fig.patch.set_facecolor('#0e1117')
+        ax.set_facecolor('#0e1117')
+        
+        # Ultimos 50 precios historicos
+        historico = precios_clean.tail(50)
+        ax.plot(historico.index, historico.values, color='white', linewidth=1.5, label='Precio Real')
+        
+        # Linea de forecast
+        ax.plot(indice_futuro, forecast_mean.values, color='lime', linewidth=2, label='Prediccion ARIMA', linestyle='--')
+        
+        # Bandas de confianza 95% en skyblue
+        ax.fill_between(indice_futuro, 
+                        conf_int.iloc[:, 0].values, 
+                        conf_int.iloc[:, 1].values, 
+                        color='skyblue', alpha=0.4, label='Intervalo 95%')
+        
+        # Linea conectora
+        ax.plot([historico.index[-1], indice_futuro[0]], 
+                [historico.values[-1], forecast_mean.values[0]], 
+                color='lime', linewidth=1.5, linestyle='--')
+        
+        # Calcular direccion
+        ultimo_precio = float(precios_clean.iloc[-1])
+        precio_predicho = float(forecast_mean.iloc[-1])
+        direccion = "SUBE" if precio_predicho > ultimo_precio else "BAJA"
+        cambio_pct = ((precio_predicho - ultimo_precio) / ultimo_precio) * 100
+        
+        ax.set_title(f"ARIMA Forecast - {nombre_activo} | {direccion} {cambio_pct:+.2f}%", color='white', fontsize=11)
+        ax.tick_params(axis='x', colors='gray', labelsize=7, rotation=45)
+        ax.tick_params(axis='y', colors='gray', labelsize=8)
+        ax.legend(loc='upper left', fontsize=8, facecolor='#1a1a2e', labelcolor='white')
+        ax.grid(color='gray', linestyle=':', linewidth=0.3, alpha=0.5)
+        plt.tight_layout()
+        
+        resultado = {
+            "prediccion": precio_predicho,
+            "direccion": direccion,
+            "cambio_pct": cambio_pct,
+            "ultimo_precio": ultimo_precio
+        }
+        
+        return fig, resultado
+        
+    except Exception as e:
+        st.warning(f"Error en ARIMA: {e}")
+        return None, None
+
+
+def graficar_garch_forecast(precios, nombre_activo, periodos_prediccion=10):
+    """
+    GARCH: Grafica volatilidad predicha con bandas de confianza
+    """
+    if not GARCH_DISPONIBLE:
+        return None, None
+    
+    try:
+        precios_clean = precios.dropna().astype(float)
+        if len(precios_clean) < 100:
+            return None, None
+        
+        # Calcular retornos porcentuales
+        retornos = precios_clean.pct_change().dropna() * 100
+        retornos = retornos.tail(200)
+        
+        # Ajustar modelo GARCH(1,1)
+        model = arch_model(retornos, vol='Garch', p=1, q=1, mean='Zero', rescale=False)
+        model_fit = model.fit(disp='off', show_warning=False)
+        
+        # Forecast de varianza
+        forecast = model_fit.forecast(horizon=periodos_prediccion)
+        varianza_predicha = forecast.variance.values[-1, :]
+        volatilidad_predicha = np.sqrt(varianza_predicha)
+        
+        # Volatilidad historica (ultimos 50 periodos)
+        vol_historica = retornos.rolling(window=5).std().tail(50)
+        
+        # Crear indice futuro
+        ultimo_indice = vol_historica.index[-1]
+        if isinstance(ultimo_indice, pd.Timestamp):
+            freq = pd.infer_freq(retornos.index[-20:])
+            if freq is None:
+                freq = 'H'
+            indice_futuro = pd.date_range(start=ultimo_indice, periods=periodos_prediccion + 1, freq=freq)[1:]
+        else:
+            indice_futuro = range(len(vol_historica), len(vol_historica) + periodos_prediccion)
+        
+        # Crear grafico
+        fig, ax = plt.subplots(figsize=(8, 4))
+        fig.patch.set_facecolor('#0e1117')
+        ax.set_facecolor('#0e1117')
+        
+        # Volatilidad historica
+        ax.plot(vol_historica.index, vol_historica.values, color='white', linewidth=1.5, label='Volatilidad Real')
+        
+        # Linea de forecast volatilidad
+        ax.plot(indice_futuro, volatilidad_predicha, color='orange', linewidth=2, label='Prediccion GARCH', linestyle='--')
+        
+        # Bandas de confianza (aproximacion: +/- 1.96 * volatilidad)
+        banda_superior = volatilidad_predicha * 1.5
+        banda_inferior = volatilidad_predicha * 0.5
+        ax.fill_between(indice_futuro, 
+                        banda_inferior, 
+                        banda_superior, 
+                        color='skyblue', alpha=0.4, label='Rango Esperado')
+        
+        # Linea conectora
+        if len(vol_historica) > 0 and not np.isnan(vol_historica.values[-1]):
+            ax.plot([vol_historica.index[-1], indice_futuro[0]], 
+                    [vol_historica.values[-1], volatilidad_predicha[0]], 
+                    color='orange', linewidth=1.5, linestyle='--')
+        
+        # Determinar nivel de volatilidad
+        vol_promedio = float(retornos.std())
+        vol_futura = float(np.mean(volatilidad_predicha))
+        
+        if vol_futura > vol_promedio * 1.5:
+            nivel = "MUY ALTA"
+            nivel_color = "red"
+        elif vol_futura > vol_promedio:
+            nivel = "ALTA"
+            nivel_color = "orange"
+        elif vol_futura > vol_promedio * 0.5:
+            nivel = "NORMAL"
+            nivel_color = "lime"
+        else:
+            nivel = "BAJA"
+            nivel_color = "cyan"
+        
+        ax.set_title(f"GARCH Volatilidad - {nombre_activo} | Nivel: {nivel}", color=nivel_color, fontsize=11)
+        ax.tick_params(axis='x', colors='gray', labelsize=7, rotation=45)
+        ax.tick_params(axis='y', colors='gray', labelsize=8)
+        ax.legend(loc='upper left', fontsize=8, facecolor='#1a1a2e', labelcolor='white')
+        ax.grid(color='gray', linestyle=':', linewidth=0.3, alpha=0.5)
+        ax.set_ylabel('Volatilidad (%)', color='gray', fontsize=9)
+        plt.tight_layout()
+        
+        resultado = {
+            "volatilidad_futura": vol_futura,
+            "nivel": nivel,
+            "volatilidad_actual": vol_promedio
+        }
+        
+        return fig, resultado
+        
+    except Exception as e:
+        st.warning(f"Error en GARCH: {e}")
+        return None, None
+
+
+# --- 4. ANALISIS DE MERCADO ---
 activos = {
     "Oro (Gold)": "GC=F", 
     "Yen (USD/JPY)": "USDJPY=X", 
-    "Bitcoin (BTC)": "BTC-USD"
+    "Bitcoin (BTC/USD)": "BTC-USD"
 }
 
 tfs = {"5m": "2d", "15m": "5d", "1h": "30d"}
 
 for nombre, ticker in activos.items():
-    st.markdown(f"---")
+    st.markdown("---")
+    st.subheader(f"📊 {nombre}")
     
-    # UI DE CÁLCULO
-    lote_sugerido = calcular_lotes_final(riesgo_usd, pips_sl, ticker)
-    col_t, col_r = st.columns([2, 1])
-    with col_t: st.subheader(f"📊 {nombre}")
-    with col_r: st.success(f"**Lote Sugerido: {lote_sugerido:.2f}** (Basado en riesgo y SL)")
-
-    # CONTENEDOR DE SEÑALES PARA EL FUEGO MAESTRO
     consenso_tendencia = [] 
 
     try:
-        # GRÁFICOS
+        # --- SECCION ARIMA Y GARCH CON GRAFICOS ---
+        st.markdown("##### 🔮 Predicciones ARIMA & GARCH")
+        
+        # Descargar datos para analisis (1 hora, 60 dias)
+        df_analisis = yf.download(ticker, period="60d", interval="1h", progress=False)
+        if isinstance(df_analisis.columns, pd.MultiIndex):
+            df_analisis.columns = df_analisis.columns.get_level_values(0)
+        
+        if not df_analisis.empty and len(df_analisis) > 100:
+            col_arima, col_garch = st.columns(2)
+            
+            with col_arima:
+                fig_arima, res_arima = graficar_arima_forecast(df_analisis['Close'], nombre)
+                if fig_arima:
+                    st.pyplot(fig_arima)
+                    plt.close(fig_arima)
+                    st.caption(f"Precio actual: ${res_arima['ultimo_precio']:.2f} → Prediccion: ${res_arima['prediccion']:.2f}")
+                else:
+                    st.info("ARIMA: Datos insuficientes o error en calculo")
+            
+            with col_garch:
+                fig_garch, res_garch = graficar_garch_forecast(df_analisis['Close'], nombre)
+                if fig_garch:
+                    st.pyplot(fig_garch)
+                    plt.close(fig_garch)
+                    st.caption(f"Volatilidad esperada: {res_garch['volatilidad_futura']:.2f}% | Nivel: {res_garch['nivel']}")
+                else:
+                    st.info("GARCH: Datos insuficientes o error en calculo")
+        else:
+            st.warning("Datos insuficientes para ARIMA/GARCH")
+
+        # --- GRAFICOS POR TIMEFRAME ---
+        st.markdown("##### 📈 Analisis por Timeframe")
         cols = st.columns(3)
+        
         for idx, (tf, per) in enumerate(tfs.items()):
             df = yf.download(ticker, period=per, interval=tf, progress=False)
-            if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+            if isinstance(df.columns, pd.MultiIndex): 
+                df.columns = df.columns.get_level_values(0)
             
-            if df.empty:
-                st.warning(f"Datos vacíos para {nombre} en {tf}. Revisa conexión o ticker.")
+            if df.empty or len(df) < 10:
+                with cols[idx]:
+                    st.warning(f"Sin datos para {tf}")
                 continue
 
-            # --- CÁLCULOS TÉCNICOS ---
-            # POC (Point of Control) mejorado con más bins para precisión
-            bins = 50  # Aumentado para mejor granularidad
-            df['price_bin'] = pd.cut(df['Close'], bins=bins)
-            vol_by_bin = df.groupby('price_bin', observed=True)['Volume'].sum()
-            poc_idx = vol_by_bin.idxmax()
-            poc_price = (poc_idx.left + poc_idx.right) / 2
+            # POC (Point of Control)
+            try:
+                bins = 20
+                df['price_bin'] = pd.cut(df['Close'], bins=bins)
+                vol_by_bin = df.groupby('price_bin', observed=True)['Volume'].sum()
+                poc_idx = vol_by_bin.idxmax()
+                poc_price = float((poc_idx.left + poc_idx.right) / 2)
+            except:
+                poc_price = float(df['Close'].mean())
             
-            # VWAP
-            df['VWAP'] = (df['Close'] * df['Volume']).cumsum() / df['Volume'].cumsum()
+            # VWAP - Calcular correctamente para todos los activos
+            # Para divisas, el volumen puede ser bajo o cero, usamos tick count como proxy
+            df['Volume_adj'] = df['Volume'].replace(0, 1)  # Evitar division por cero
+            if df['Volume_adj'].sum() > 0:
+                df['VWAP'] = (df['Close'] * df['Volume_adj']).cumsum() / df['Volume_adj'].cumsum()
+            else:
+                # Si no hay volumen, usar SMA como proxy
+                df['VWAP'] = df['Close'].rolling(window=20, min_periods=1).mean()
             
-            # Diamante (Volatilidad + Volumen) con umbrales ajustados
-            df['RVOL'] = df['Volume'] / df['Volume'].rolling(20).mean()
+            # Asegurarse de que VWAP no tenga NaN
+            df['VWAP'] = df['VWAP'].ffill().bfill()
+            
+            # Diamante (alta volumen, baja volatilidad)
+            df['RVOL'] = df['Volume_adj'] / df['Volume_adj'].rolling(20, min_periods=1).mean()
             df['Range'] = df['High'] - df['Low']
             last = df.iloc[-1]
-            es_diamante = (last['RVOL'] > 1.5) and (last['Range'] < df['Range'].rolling(20).mean().iloc[-1] * 0.8)  # Umbrales más sensibles
+            
+            try:
+                rvol_val = float(last['RVOL']) if not pd.isna(last['RVOL']) else 0
+                range_val = float(last['Range']) if not pd.isna(last['Range']) else 0
+                range_mean = float(df['Range'].rolling(20, min_periods=1).mean().iloc[-1])
+                es_diamante = (rvol_val > 2.0) and (range_val < range_mean)
+            except:
+                es_diamante = False
 
-            # DETERMINAR TENDENCIA LOCAL
+            # Determinar tendencia
             tendencia = "NEUTRO"
             color_box = "gray"
-            if last['Close'] > last['VWAP']:
-                tendencia = "COMPRA"
-                color_box = "green"
-                consenso_tendencia.append("COMPRA")
-            else:
-                tendencia = "VENTA"
-                color_box = "red"
-                consenso_tendencia.append("VENTA")
+            try:
+                close_val = float(last['Close'])
+                vwap_val = float(last['VWAP'])
+                if close_val > vwap_val:
+                    tendencia = "COMPRA"
+                    color_box = "green"
+                    consenso_tendencia.append("COMPRA")
+                else:
+                    tendencia = "VENTA"
+                    color_box = "red"
+                    consenso_tendencia.append("VENTA")
+            except:
+                consenso_tendencia.append("NEUTRO")
 
-            # --- GRAFICADO MEJORADO ---
+            # Graficar
             with cols[idx]:
                 fig, ax = plt.subplots(figsize=(6, 4))
                 fig.patch.set_facecolor('#0e1117')
                 ax.set_facecolor('#0e1117')
                 
-                # Precios con velas para más detalle (opcional, pero mejora visual)
-                # Para simplicidad, mantenemos línea, pero añadimos sombra
-                ax.plot(df.index, df['Close'], color='white', alpha=0.8, linewidth=1.5)
-                ax.plot(df.index, df['VWAP'], color='cyan', linestyle='--', alpha=0.7, linewidth=1.2)
+                # Precio (linea blanca)
+                ax.plot(df.index, df['Close'], color='white', alpha=0.7, linewidth=1.2, label='Precio')
                 
-                # 1. POC LÍNEA Y NÚMERO
-                ax.axhline(y=poc_price, color='red', alpha=0.6, linewidth=1.5)
-                ax.text(df.index[-1], poc_price, f'POC: {poc_price:.2f}', 
+                # VWAP (linea cyan) - ASEGURAR QUE SE MUESTRE
+                ax.plot(df.index, df['VWAP'], color='cyan', linestyle='-', alpha=0.9, linewidth=1.5, label='VWAP')
+                
+                # POC (linea roja horizontal)
+                ax.axhline(y=poc_price, color='red', alpha=0.8, linewidth=2, label='POC')
+                ax.text(df.index[-1], poc_price, f' {poc_price:.2f}', 
                         color='red', fontsize=9, fontweight='bold', 
                         ha='left', va='center', backgroundcolor='#0e1117')
 
-                # 2. CUADRO DE CONCLUSIÓN
-                ax.text(0.05, 0.92, f'{tendencia}', transform=ax.transAxes, 
-                        color='white', fontsize=10, fontweight='bold', 
-                        bbox=dict(facecolor=color_box, alpha=0.7, boxstyle='round,pad=0.5'))
+                # Cuadro de tendencia
+                ax.text(0.05, 0.92, tendencia, transform=ax.transAxes, 
+                        color='white', fontsize=11, fontweight='bold', 
+                        bbox=dict(facecolor=color_box, alpha=0.8, boxstyle='round,pad=0.5'))
 
-                # Diamante mejorado
+                # Diamante si aplica
                 if es_diamante:
-                    ax.scatter(df.index[-1], df['Close'].iloc[-1], color='#00d4ff', s=150, marker='D', edgecolors='white', zorder=5)
+                    ax.scatter(df.index[-1], float(df['Close'].iloc[-1]), 
+                              color='#00d4ff', s=150, marker='d', 
+                              edgecolors='white', linewidths=2, zorder=5, label='Diamante')
 
-                ax.set_title(f"TF: {tf} | {tendencia}", color="white", fontsize=10)
+                ax.set_title(f"TF: {tf} | {tendencia}", color="white", fontsize=11, fontweight='bold')
                 ax.tick_params(axis='x', colors='gray', labelsize=6, rotation=45)
-                ax.tick_params(axis='y', colors='gray', labelsize=6)
-                ax.grid(color='gray', linestyle=':', linewidth=0.2, alpha=0.3)
-                
-                # Añadir formato de fechas
-                ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M' if 'm' in tf else '%d-%b'))
+                ax.tick_params(axis='y', colors='gray', labelsize=7)
+                ax.grid(color='gray', linestyle=':', linewidth=0.3, alpha=0.4)
+                ax.legend(loc='upper right', fontsize=7, facecolor='#1a1a2e', labelcolor='white')
+                plt.tight_layout()
                 st.pyplot(fig)
+                plt.close(fig)
 
-        # --- LÓGICA DE FUEGO MAESTRO ---
-        st.markdown("##### 🔮 Conclusión del Algoritmo:")
+        # --- CONCLUSION FUEGO MAESTRO ---
+        st.markdown("##### 🔮 Conclusion del Algoritmo:")
         
-        col_res, col_void = st.columns([3,1])
-        with col_res:
-            if len(consenso_tendencia) == 3:
-                if all(t == "COMPRA" for t in consenso_tendencia):
-                    st.error("🔥🔥🔥 ¡FUEGO MAESTRO DETECTADO! ALINEACIÓN TOTAL DE COMPRA 🔥🔥🔥")
-                    st.caption(f"Fuerte presión de compra en {nombre} (5m, 15m, 1h). Probabilidad alta de continuación alcista.")
-                elif all(t == "VENTA" for t in consenso_tendencia):
-                    st.error("🧊🧊🧊 ¡VENTA FUERTE CONFIRMADA! ALINEACIÓN TOTAL BAJISTA 🧊🧊🧊")
-                    st.caption(f"Fuerte presión de venta en {nombre} (5m, 15m, 1h). Probabilidad alta de continuación bajista.")
-                else:
-                    st.info("⚖️ MERCADO MIXTO: Ten cuidado, los tiempos no coinciden. Espera confirmación.")
+        if len(consenso_tendencia) == 3:
+            if all(t == "COMPRA" for t in consenso_tendencia):
+                st.success("🔥🔥🔥 FUEGO MAESTRO DETECTADO! ALINEACION TOTAL DE COMPRA 🔥🔥🔥")
+                st.caption(f"Fuerte presion de compra en {nombre} (5m, 15m, 1h).")
+            elif all(t == "VENTA" for t in consenso_tendencia):
+                st.error("🧊🧊🧊 VENTA FUERTE CONFIRMADA! ALINEACION TOTAL BAJISTA 🧊🧊🧊")
+                st.caption(f"Fuerte presion de venta en {nombre} (5m, 15m, 1h).")
             else:
-                st.warning("Datos insuficientes para cálculo maestro. Revisa conexión a datos.")
+                st.info("⚖️ MERCADO MIXTO: Los tiempos no coinciden. Espera mejor alineacion.")
+        else:
+            st.warning("Datos insuficientes para calculo maestro.")
 
     except Exception as e: 
-        st.error(f"Error procesando {nombre}: {str(e)}. Posible issue con yfinance o conexión.")
+        st.error(f"Error procesando {nombre}: {e}")
 
-# --- 5. VISUALIZACIÓN ADICIONAL: HEATMAP DE CONSENSO (Opcional para todos activos) ---
 st.markdown("---")
-st.subheader("🌐 Resumen Global de Activos")
-consenso_data = {act: consenso_tendencia for act, _ in activos.items() if 'consenso_tendencia' in locals()}  # Recopilar si disponible
-if consenso_data:
-    df_consenso = pd.DataFrame(consenso_data).T
-    fig_heat, ax_heat = plt.subplots(figsize=(8, 4))
-    sns.heatmap(df_consenso.apply(lambda x: 1 if x == 'COMPRA' else -1 if x == 'VENTA' else 0), annot=True, cmap='RdYlGn', ax=ax_heat)
-    ax_heat.set_title("Heatmap de Consenso por Activo y TF")
-    st.pyplot(fig_heat)
-else:
-    st.info("No hay datos de consenso disponibles para heatmap.")
+st.caption("Control Maestro v9.0 | ARIMA + GARCH + Analisis Tecnico Institucional")
