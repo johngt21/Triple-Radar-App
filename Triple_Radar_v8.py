@@ -8,12 +8,12 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Configuracion de pagina - DEBE IR PRIMERO
-st.set_page_config(page_title="Control Maestro v9.0", layout="wide", page_icon="🔥")
+st.set_page_config(page_title="TRIPLE RADAR v9.0", layout="wide", page_icon="🔥")
 
 # --- 1. SEGURIDAD ---
 def check_password():
     if "password_correct" not in st.session_state:
-        st.text_input("Control Maestro v9.0 - Acceso Restringido", type="password", on_change=password_entered, key="password")
+        st.text_input("TRIPLE RADAR v9.0 - Acceso Restringido", type="password", on_change=password_entered, key="password")
         return False
     return st.session_state["password_correct"]
 
@@ -27,7 +27,7 @@ def password_entered():
 if not check_password(): 
     st.stop()
 
-st.title("🎛️ Control Maestro v9.0: ARIMA + GARCH + Analisis Tecnico")
+st.title("🎛️ TRIPLE RADAR v9.0: ARIMA + GARCH + Analisis Tecnico")
 
 # --- 2. LEYENDA UNICA EXPLICATIVA (PARA DUMMIES) ---
 with st.expander("📖 GUIA RAPIDA: Que significa todo esto? (Lee esto primero)", expanded=True):
@@ -429,4 +429,5 @@ for nombre, ticker in activos.items():
         st.error(f"Error procesando {nombre}: {e}")
 
 st.markdown("---")
-st.caption("Control Maestro v9.0 | ARIMA + GARCH + Analisis Tecnico Institucional")
+st.caption("TRIPLE RADAR v9.0 | ARIMA + GARCH + Analisis Tecnico Cuantitativo")
+
