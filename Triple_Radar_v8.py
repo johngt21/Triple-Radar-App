@@ -429,5 +429,4 @@ for nombre, ticker in activos.items():
         st.error(f"Error procesando {nombre}: {e}")
 
 st.markdown("---")
-st.caption("TRIPLE RADAR v9.0 | ARIMA + GARCH + Analisis Tecnico Cuantitativo")
-
+st.caption("TRIPLE RADAR v9.0 | ARIMA + GARCH + Analisis Cuantitativo")
